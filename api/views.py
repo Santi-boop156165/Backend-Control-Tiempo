@@ -2,9 +2,9 @@ from django.shortcuts import render
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from .serializers import ClienteSerializer,UsuarioSerializer
+from .serializers import ClienteSerializer,UsuarioSerializer,ControlTiempoSerializer,UsuarioTiempoSerializer
 from .models import Cliente, ControlTiempo, Usuario, UsuarioTiempo
-
+from django.db import transaction
 # Create your views here.
 
 class ControlApiView(APIView):
@@ -33,27 +33,32 @@ class ControlApiView(APIView):
         
     
     def post(self, request):
-        cliente_data = request.data
-        control_tiempo_data = cliente_data.pop('control_tiempo', [])
+        with transaction.atomic():  # Usamos una transacción para asegurarnos de que todo se guarde correctamente
+            cliente_data = request.data
+            control_tiempo_data = cliente_data.pop('control_tiempo', [])
+            
 
-        cliente_serializer = ClienteSerializer(data=cliente_data)
-        if cliente_serializer.is_valid():
+            if not control_tiempo_data:
+                return Response({"message": "ControlTiempo es requerido"}, status=status.HTTP_400_BAD_REQUEST)
+
+            cliente_serializer = ClienteSerializer(data=cliente_data)
+            if not cliente_serializer.is_valid():
+                return Response(cliente_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            
+            control_tiempo_serializer = ControlTiempoSerializer(data=control_tiempo_data, many=True)
+            if not control_tiempo_serializer.is_valid():
+                return Response(control_tiempo_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            
             cliente = cliente_serializer.save()
-
+            
             control_tiempo_instances = []
             for control_data in control_tiempo_data:
-                control_data['cliente'] = cliente  # Pasar la instancia de Cliente
+                control_data['cliente'] = cliente  # Pasar la instancia de Cliente, no el ID
                 control_tiempo_instances.append(ControlTiempo(**control_data))
 
             ControlTiempo.objects.bulk_create(control_tiempo_instances)
             
-            response_data = {
-                "succes": cliente_serializer.data
-              
-            }
-            return Response(response_data, status=status.HTTP_201_CREATED)
-        else:
-            return Response(cliente_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"success": cliente_serializer.data}, status=status.HTTP_201_CREATED)
       
 
  
@@ -73,6 +78,8 @@ class ControlApiView(APIView):
             for control_data in control_tiempo_data:
                 date = control_data.get('date')
                 minutes_spent = control_data.get('minutes_spent')
+                consentNumber = control_data.get('consentNumber')
+                handleColor = control_data.get('handleColor')
                 id_control = control_data.get('id')
                 # Buscar registro existente de ControlTiempo por fecha
                 try:
@@ -80,11 +87,13 @@ class ControlApiView(APIView):
                     control_tiempo = ControlTiempo.objects.get(id=id_control,)
                     control_tiempo.minutes_spent = minutes_spent
                     control_tiempo.date = date
+                    control_tiempo.consentNumber = consentNumber
+                    control_tiempo.handleColor = handleColor
                     control_tiempo.save()
                 except ControlTiempo.DoesNotExist:
                
                     # Si no existe, crear uno nuevo
-                    ControlTiempo.objects.create(cliente=cliente, date=date, minutes_spent=minutes_spent)
+                    ControlTiempo.objects.create(cliente=cliente, date=date, minutes_spent=minutes_spent, consentNumber=consentNumber, handleColor=handleColor)
             
             response_data = {
                 "success": "Cliente and ControlTiempo updated successfully"
@@ -129,7 +138,10 @@ class TiempoApiView(APIView):
         
        def post(self, request):
         usuario_data = request.data
-        usuario_tiempo_data = usuario_data.pop('control_tiempo', [])  # Use 'usuario_tiempo' instead of 'usuarios'
+        usuario_tiempo_data = usuario_data.pop('control_tiempo', []) 
+
+        if not usuario_tiempo_data:
+            return Response({"message": "ControlTiempo es requerido"}, status=status.HTTP_400_BAD_REQUEST)
 
         usuario_serializer = UsuarioSerializer(data=usuario_data)
         if usuario_serializer.is_valid():
@@ -143,7 +155,7 @@ class TiempoApiView(APIView):
             UsuarioTiempo.objects.bulk_create(usuario_tiempo_instances)
 
             response_data = {
-                "success": usuario_serializer.data,  # Correct the key to 'success'
+                "success": usuario_serializer.data,  
             }
             return Response(response_data, status=status.HTTP_201_CREATED)
         else:
