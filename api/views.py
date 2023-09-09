@@ -37,26 +37,23 @@ class ControlApiView(APIView):
             cliente_data = request.data
             control_tiempo_data = cliente_data.pop('control_tiempo', [])
             
-
-            if not control_tiempo_data:
-                return Response({"message": "ControlTiempo es requerido"}, status=status.HTTP_400_BAD_REQUEST)
-
             cliente_serializer = ClienteSerializer(data=cliente_data)
             if not cliente_serializer.is_valid():
                 return Response(cliente_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+            cliente = cliente_serializer.save()
+            
+            # Ahora que tenemos el 'id' autogenerado del cliente,
+            # podemos asignárselo al campo 'cliente' de cada objeto ControlTiempo
+            for item in control_tiempo_data:
+                item['cliente'] = cliente.id
             
             control_tiempo_serializer = ControlTiempoSerializer(data=control_tiempo_data, many=True)
+            
             if not control_tiempo_serializer.is_valid():
                 return Response(control_tiempo_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
             
-            cliente = cliente_serializer.save()
-            
-            control_tiempo_instances = []
-            for control_data in control_tiempo_data:
-                control_data['cliente'] = cliente  # Pasar la instancia de Cliente, no el ID
-                control_tiempo_instances.append(ControlTiempo(**control_data))
-
-            ControlTiempo.objects.bulk_create(control_tiempo_instances)
+            control_tiempo_serializer.save()
             
             return Response({"success": cliente_serializer.data}, status=status.HTTP_201_CREATED)
       
@@ -130,9 +127,10 @@ class TiempoApiView(APIView):
         else:
             clientes = Usuario.objects.all()
             serializer = UsuarioSerializer(clientes, many=True)
+            sorted_data = sorted(serializer.data, key=lambda x: min([control['minutes_spent'] for control in x['control_tiempo']]) if x['control_tiempo'] else float('inf'))
             data = {
                 "message": "Success",
-                "clientes": serializer.data
+                "clientes": sorted_data
             }
             return Response(data, status=status.HTTP_200_OK)
         
@@ -140,8 +138,6 @@ class TiempoApiView(APIView):
         usuario_data = request.data
         usuario_tiempo_data = usuario_data.pop('control_tiempo', []) 
 
-        if not usuario_tiempo_data:
-            return Response({"message": "ControlTiempo es requerido"}, status=status.HTTP_400_BAD_REQUEST)
 
         usuario_serializer = UsuarioSerializer(data=usuario_data)
         if usuario_serializer.is_valid():
@@ -172,4 +168,47 @@ class TiempoApiView(APIView):
        
 
 
+
+class ControlTiempoCreateView(APIView):
+
+    def get(self, request, cliente_id):
+        try:
+            control_tiempos = ControlTiempo.objects.filter(cliente=cliente_id)
+            control_tiempo_serializer = ControlTiempoSerializer(control_tiempos, many=True)
+            
+            if control_tiempos:
+                return Response({"message": "Success", "control_tiempo": control_tiempo_serializer.data}, status=status.HTTP_200_OK)
+            else:
+                return Response({"message": "No se encontraron registros para el cliente con ID {}".format(cliente_id)}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({"message": "Error interno del servidor", "error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    def post(self, request):
+        control_tiempo_data = request.data
+
+        control_tiempo_serializer = ControlTiempoSerializer(data=control_tiempo_data)
+        if not control_tiempo_serializer.is_valid():
+            return Response(control_tiempo_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        control_tiempo = control_tiempo_serializer.save()
         
+        return Response({"message": "Success", "control_tiempo": control_tiempo_serializer.data}, status=status.HTTP_201_CREATED) 
+    
+    def put(self, request, cliente_id, control_tiempo_id):
+        try:
+            control_tiempo = ControlTiempo.objects.get(id=control_tiempo_id, cliente=cliente_id)
+        except ControlTiempo.DoesNotExist:
+            return Response({"message": "No se encontró el registro de tiempo para el cliente con ID {}".format(cliente_id)},
+                            status=status.HTTP_404_NOT_FOUND)
+
+        control_tiempo_data = request.data
+        control_tiempo_serializer = ControlTiempoSerializer(control_tiempo, data=control_tiempo_data, partial=True)
+
+        if control_tiempo_serializer.is_valid():
+            control_tiempo_serializer.save()
+            return Response({"message": "Success", "control_tiempo": control_tiempo_serializer.data},
+                            status=status.HTTP_200_OK)
+        else:
+            return Response(control_tiempo_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    

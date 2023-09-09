@@ -6,12 +6,11 @@ from .models import Cliente, ControlTiempo, Usuario, UsuarioTiempo
 class ControlTiempoSerializer(serializers.ModelSerializer):
     class Meta:
         model = ControlTiempo
-        fields = ['id','date', 'minutes_spent', 'consentNumber', 'handleColor']
+        fields = '__all__'
 
 
 class ClienteSerializer(serializers.ModelSerializer):
-    control_tiempo = ControlTiempoSerializer(many=True, required=False, )
-    
+    control_tiempo = ControlTiempoSerializer(many=True, required=False)
     class Meta:
         model = Cliente
         fields = ['id','first_name', 'second_name', 'first_surname', 'second_surname', 'age', 'identification', 'phone','email','control_tiempo']
@@ -20,7 +19,7 @@ class ClienteSerializer(serializers.ModelSerializer):
 class UsuarioTiempoSerializer(serializers.ModelSerializer):
     class Meta:
         model = UsuarioTiempo
-        fields = ['id','date', 'minutes_spent', 'consentNumber', 'handleColor']
+        fields = '__all__'
 
 class UsuarioSerializer(serializers.ModelSerializer):
     control_tiempo = UsuarioTiempoSerializer(many=True, required=False)
