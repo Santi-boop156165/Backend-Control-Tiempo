@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import ControlApiView,TiempoApiView,ControlTiempoCreateView,GenereteDataClientesApiView
+from .views import ControlApiView,TiempoApiView,ControlTiempoCreateView
 
 
 urlpatterns = [
@@ -9,8 +9,7 @@ urlpatterns = [
     path('usuarios/<int:id>', TiempoApiView.as_view(), name = 'procesar_tiempos'),
     path('control_tiempo', ControlTiempoCreateView.as_view(), name = 'crear_control_tiempo'),
     path('control_tiempo/<int:cliente_id>/', ControlTiempoCreateView.as_view(), name='procesar_control_tiempo'),
-    path('control_tiempo/<int:cliente_id>/<int:control_tiempo_id>/', ControlTiempoCreateView.as_view(), name='actualizar_control_tiempo'),
-    path('data', GenereteDataClientesApiView.as_view(), name = 'listar_datos'),
+    path('control_tiempo/<int:cliente_id>/<int:control_tiempo_id>/', ControlTiempoCreateView.as_view(), name='actualizar_control_tiempo')
 
 
 

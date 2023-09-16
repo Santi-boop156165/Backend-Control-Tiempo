@@ -214,26 +214,6 @@ class ControlTiempoCreateView(APIView):
             return Response(control_tiempo_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     
-class GenereteDataClientesApiView(APIView):
+
     
-     def get(self, request, id=0):
-        if id > 0:
-            try:
-                cliente = Cliente.objects.get(id=id)
-                serializer = ClienteSerializer(cliente)
-                data = {
-                    "message": "Success",
-                    "cliente": serializer.data
-                }
-                return Response(data, status=status.HTTP_200_OK)
-            except Cliente.DoesNotExist:
-                return Response({"message": "Cliente not found"}, status=status.HTTP_404_NOT_FOUND)
-        else:
-            
-            clientes = Cliente.objects.all()
-            serializer = ClienteSerializer(clientes, many=True)
-            data = {
-                "message": "Success",
-                "clientes": serializer.data
-            }
-            return Response(data, status=status.HTTP_200_OK) 
+    
