@@ -216,4 +216,12 @@ class ControlTiempoCreateView(APIView):
     
 
     
-    
+class FullDataApiClientes(APIView):
+    def get(self, request):
+        clientes = Cliente.objects.all()
+        serializer = ClienteSerializer(clientes, many=True)
+        data = {
+            "message": "Success",
+            "clientes": serializer.data
+        }
+        return Response(data, status=status.HTTP_200_OK)
