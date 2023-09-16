@@ -1,6 +1,7 @@
 from django.shortcuts import render
 from rest_framework import status
 from rest_framework.response import Response
+from django.core.paginator import Paginator
 from rest_framework.views import APIView
 from .serializers import ClienteSerializer,UsuarioSerializer,ControlTiempoSerializer,UsuarioTiempoSerializer
 from .models import Cliente, ControlTiempo, Usuario, UsuarioTiempo
@@ -22,18 +23,23 @@ class ControlApiView(APIView):
             except Cliente.DoesNotExist:
                 return Response({"message": "Cliente not found"}, status=status.HTTP_404_NOT_FOUND)
         else:
+            page_number = request.query_params.get('page', 1)
             clientes = Cliente.objects.all()
-            serializer = ClienteSerializer(clientes, many=True)
+            paginator = Paginator(clientes, 6)
+            current_page = paginator.get_page(page_number)
+            serializer = ClienteSerializer(current_page, many=True)
             data = {
                 "message": "Success",
-                "clientes": serializer.data
+                "clientes": serializer.data,
+                "page_number": current_page.number,
+                "total_pages": paginator.num_pages
             }
             return Response(data, status=status.HTTP_200_OK)
         
         
     
     def post(self, request):
-        with transaction.atomic():  # Usamos una transacción para asegurarnos de que todo se guarde correctamente
+        with transaction.atomic(): 
             cliente_data = request.data
             control_tiempo_data = cliente_data.pop('control_tiempo', [])
             
@@ -43,8 +49,6 @@ class ControlApiView(APIView):
         
             cliente = cliente_serializer.save()
             
-            # Ahora que tenemos el 'id' autogenerado del cliente,
-            # podemos asignárselo al campo 'cliente' de cada objeto ControlTiempo
             for item in control_tiempo_data:
                 item['cliente'] = cliente.id
             
@@ -109,7 +113,6 @@ class ControlApiView(APIView):
             return Response({"message": "Cliente not found"}, status=status.HTTP_404_NOT_FOUND)
         
 
-
 class TiempoApiView(APIView):
        
        def get(self, request, id=0):
@@ -168,7 +171,6 @@ class TiempoApiView(APIView):
        
 
 
-
 class ControlTiempoCreateView(APIView):
 
     def get(self, request, cliente_id):
@@ -212,3 +214,26 @@ class ControlTiempoCreateView(APIView):
             return Response(control_tiempo_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     
+class GenereteDataClientesApiView(APIView):
+    
+     def get(self, request, id=0):
+        if id > 0:
+            try:
+                cliente = Cliente.objects.get(id=id)
+                serializer = ClienteSerializer(cliente)
+                data = {
+                    "message": "Success",
+                    "cliente": serializer.data
+                }
+                return Response(data, status=status.HTTP_200_OK)
+            except Cliente.DoesNotExist:
+                return Response({"message": "Cliente not found"}, status=status.HTTP_404_NOT_FOUND)
+        else:
+            
+            clientes = Cliente.objects.all()
+            serializer = ClienteSerializer(clientes, many=True)
+            data = {
+                "message": "Success",
+                "clientes": serializer.data
+            }
+            return Response(data, status=status.HTTP_200_OK) 
