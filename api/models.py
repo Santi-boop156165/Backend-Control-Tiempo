@@ -9,7 +9,7 @@ class Cliente(models.Model):
     first_surname = models.CharField(max_length=30, null=False, blank=False)
     second_surname = models.CharField(max_length=30, null=True, blank=True)
     age = models.IntegerField(null=False, blank=False)
-    identification = models.CharField(max_length=60, null=False, blank=False)
+    identification = models.CharField(max_length=60, null=False, blank=False, unique=True)
     phone = models.CharField(max_length=40, null=False, blank=False)
     email = models.EmailField(null=True, blank=True, max_length=40) 
 

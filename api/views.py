@@ -24,10 +24,18 @@ class ControlApiView(APIView):
                 return Response({"message": "Cliente not found"}, status=status.HTTP_404_NOT_FOUND)
         else:
             page_number = request.query_params.get('page', 1)
-            clientes = Cliente.objects.all()
-            paginator = Paginator(clientes, 6)
+            search = request.query_params.get('search', '') # Captura el parámetro de búsqueda
+            
+            # Filtra los objetos Cliente basados en el número de identificación
+            if search:
+                clientes = Cliente.objects.filter(first_name__icontains=search)
+            else:
+                clientes = Cliente.objects.all()
+
+            paginator = Paginator(clientes, 14)
             current_page = paginator.get_page(page_number)
             serializer = ClienteSerializer(current_page, many=True)
+
             data = {
                 "message": "Success",
                 "clientes": serializer.data,
